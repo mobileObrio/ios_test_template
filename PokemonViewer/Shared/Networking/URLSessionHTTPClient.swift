@@ -1,40 +1,17 @@
-
 import Foundation
 
-public final class URLSessionHTTPClient: HTTPClient {
+final class URLSessionHTTPClient: HTTPClient {
     private let session: URLSession
     
-    public init(session: URLSession) {
+    init(session: URLSession = .shared) {
         self.session = session
     }
-
-    public func dispatch(_ request: URLRequest, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
-        let task = session.dataTask(with: request) { data, response, error in
-            completion(
-                Result {
-                    if let error = error {
-                        throw error
-                    } else if let data = data, let response = response as? HTTPURLResponse {
-                        return (data, response)
-                    } else {
-                        throw UnexpectedValuesRepresentation()
-                    }
-                }
-            )
-        }
-        task.resume()
-        return URLSessionTaskWrapper(wrapped: task)
-    }
-}
-
-private extension URLSessionHTTPClient {
-    struct UnexpectedValuesRepresentation: Error {}
     
-    struct URLSessionTaskWrapper: HTTPClientTask {
-        let wrapped: URLSessionTask
-        
-        func cancel() {
-            wrapped.cancel()
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
         }
+        return (data, httpResponse)
     }
 }
